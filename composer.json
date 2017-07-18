@@ -1,0 +1,19 @@
+{
+  "name": "rohitkundale/ordercomment",
+  "description": "Allows customer to add a special note/message/comment or instruction while placing an order",
+  "type": "magento2-module",
+  "version": "1.0.0",
+  "license": [
+    "OSL-3.0"
+  ],
+  "require": {
+    "php": "~5.5.0|~5.6.0|~7.0.0",
+    "magento/framework": "*"
+  },
+  "autoload": {
+    "files": [ "registration.php" ],
+    "psr-4": {
+      "RohitKundale\\OrderComment\\": ""
+    }
+  }
+}
