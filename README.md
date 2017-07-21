@@ -3,7 +3,7 @@
 
 Log in to the Magento server, go to your Magento install directory and run following commands:
 ```
-composer require rohitkundale/ordercomment
+composer require rohitkundale/order-comment
 
 php -f bin/magento module:enable RohitKundale_OrderComment
 php -f bin/magento setup:upgrade
