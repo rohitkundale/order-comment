@@ -6,6 +6,9 @@
 
 namespace RohitKundale\OrderComment\Plugin\Model\Checkout;
 
+use Magento\Quote\Model\QuoteManagement;
+use Magento\Quote\Api\Data\PaymentInterface;
+
 /**
  * Class PaymentInformationManagement
  *
