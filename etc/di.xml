@@ -12,4 +12,7 @@
     <type name="Magento\Quote\Model\QuoteManagement">
         <plugin name="rohitkundale-save-comments" type="RohitKundale\OrderComment\Plugin\Model\Checkout\PaymentInformationManagement" sortOrder="10"/>
     </type>
+    <type name="Magento\Checkout\Model\PaymentInformationManagement">
+        <plugin name="rohitkundale-save-comments" type="RohitKundale\OrderComment\Plugin\Model\Checkout\PaymentInformationManagement" sortOrder="10"/>
+    </type>
 </config>

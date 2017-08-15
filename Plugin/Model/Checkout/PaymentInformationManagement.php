@@ -6,7 +6,6 @@
 
 namespace RohitKundale\OrderComment\Plugin\Model\Checkout;
 
-use Magento\Quote\Model\QuoteManagement;
 use Magento\Quote\Api\Data\PaymentInterface;
 
 /**
@@ -55,14 +54,17 @@ class PaymentInformationManagement
         $this->orderFactory = $orderFactory;
     }
 
-    public function aroundPlaceOrder(
-        QuoteManagement $subject,
+    public function aroundSavePaymentInformation(
+        \Magento\Checkout\Model\PaymentInformationManagement $subject,
         \Closure $proceed,
         $cartId,
-        PaymentInterface $paymentMethod = null
+        PaymentInterface $paymentMethod = null,
+        \Magento\Quote\Api\Data\AddressInterface $billingAddress = null
     )
     {
-        /** @param string $comment */
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $checkoutSession = $objectManager->create('\Magento\Checkout\Model\Session');
+
         $comment = NULL;
         // get JSON post data
         $requestBody = file_get_contents('php://input');
@@ -75,11 +77,27 @@ class PaymentInformationManagement
                 // remove any HTML tags
                 $comment = $this->_filterManager->stripTags($data['comments']);
                 $comment = __('ORDER COMMENT: ') . $comment;
+                $checkoutSession->setOrderCommentstext($comment);
             }
         }
         // run parent method and capture int $orderId
+        $result = $proceed($cartId, $paymentMethod, $billingAddress);
+
+        return $result;
+    }
+
+    public function aroundPlaceOrder(
+        \Magento\Quote\Model\QuoteManagement $subject,
+        \Closure $proceed,
+        $cartId,
+        PaymentInterface $paymentMethod = null
+    )
+    {
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $checkoutSession = $objectManager->create('\Magento\Checkout\Model\Session');
+        $comment = $checkoutSession->getOrderCommentstext();
+
         $orderId = $proceed($cartId, $paymentMethod);
-        // if $comments
         if ($comment) {
             /** @param \Magento\Sales\Model\OrderFactory $order */
             $order = $this->orderFactory->create()->load($orderId);
@@ -98,8 +116,9 @@ class PaymentInformationManagement
                 $history->setEntityName('order');
                 $history->setStatus($status);
                 $history->save();
+                $order->setCustomerNote($comment);
+                $order->save();
             }
         }
-        return $orderId;
     }
 }
