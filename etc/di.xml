@@ -6,10 +6,10 @@
  */
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
-	<type name="Magento\Checkout\Model\PaymentInformationManagement">
-        <plugin name="rohitkundale-save-comments" type="RohitKundale\OrderComment\Plugin\Model\Checkout\PaymentInformationManagement" sortOrder="10"/>
-    </type>
-	<type name="Magento\Checkout\Model\GuestPaymentInformationManagement">
+    <type name="Magento\Checkout\Model\GuestPaymentInformationManagement">
         <plugin name="rohitkundale-save-comments" type="RohitKundale\OrderComment\Plugin\Model\Checkout\GuestPaymentInformationManagement" sortOrder="10"/>
+    </type>
+    <type name="Magento\Quote\Model\QuoteManagement">
+        <plugin name="rohitkundale-save-comments" type="RohitKundale\OrderComment\Plugin\Model\Checkout\PaymentInformationManagement" sortOrder="10"/>
     </type>
 </config>
