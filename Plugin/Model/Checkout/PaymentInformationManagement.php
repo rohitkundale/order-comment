@@ -76,7 +76,7 @@ class PaymentInformationManagement
             if ($data['comments']) {
                 // remove any HTML tags
                 $comment = $this->_filterManager->stripTags($data['comments']);
-                $comment = __('ORDER COMMENT: ') . $comment;
+                $comment = __('Order Comment: ') . $comment;
                 $checkoutSession->setOrderCommentstext($comment);
             }
         }

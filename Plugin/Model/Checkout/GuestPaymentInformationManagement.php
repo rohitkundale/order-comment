@@ -79,7 +79,7 @@ class GuestPaymentInformationManagement
 			if ($data['comments']) {
 				// remove any HTML tags
 				$comment = $this->_filterManager->stripTags($data['comments']);
-				$comment = __('ORDER COMMENT: ') . $comment;
+				$comment = __('Order Comment: ') . $comment;
 			}
 		}
 		// run parent method and capture int $orderId
