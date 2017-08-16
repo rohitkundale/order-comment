@@ -58,7 +58,7 @@ class PaymentInformationManagement
         \Magento\Checkout\Model\PaymentInformationManagement $subject,
         \Closure $proceed,
         $cartId,
-        PaymentInterface $paymentMethod = null,
+        PaymentInterface $paymentMethod,
         \Magento\Quote\Api\Data\AddressInterface $billingAddress = null
     )
     {
