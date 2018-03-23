@@ -118,6 +118,7 @@ class PaymentInformationManagement
                 $history->save();
                 $order->setCustomerNote($comment);
                 $order->save();
+                $checkoutSession->setOrderCommentstext("");
             }
         }
     }
