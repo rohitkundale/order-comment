@@ -121,5 +121,7 @@ class PaymentInformationManagement
                 $checkoutSession->setOrderCommentstext("");
             }
         }
+
+        return $orderId;
     }
 }
