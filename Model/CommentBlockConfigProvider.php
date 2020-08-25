@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright © 2017 RohitKundale. All rights reserved.
+ * Copyright ©  RohitKundale. All rights reserved.
  * See COPYING.txt for license details.
  */
 namespace RohitKundale\OrderComment\Model;

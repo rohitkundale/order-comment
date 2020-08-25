@@ -1,9 +1,19 @@
 <?php
 /**
- * Copyright © 2017 RohitKundale. All rights reserved.
+ * Copyright © RohitKundale. All rights reserved.
  * See COPYING.txt for license details.
  */
+
 namespace RohitKundale\OrderComment\Plugin\Model\Checkout;
+
+use Magento\Framework\Filter\FilterManager;
+use Magento\Framework\Json\Helper\Data;
+use Magento\Quote\Api\Data\AddressInterface;
+use Magento\Quote\Api\Data\PaymentInterface;
+use Magento\Sales\Api\Data\OrderStatusHistoryInterface;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Api\OrderStatusHistoryRepositoryInterface;
+use Magento\Sales\Model\Order\Status\HistoryFactory;
 
 /**
  * Class GuestPaymentInformationManagement
@@ -13,41 +23,51 @@ namespace RohitKundale\OrderComment\Plugin\Model\Checkout;
 class GuestPaymentInformationManagement
 {
     /**
-     * @var \Magento\Sales\Model\Order\Status\HistoryFactory
+     * @var HistoryFactory
      */
-	protected $_historyFactory;
+    protected $historyFactory;
 
     /**
-     * @var \Magento\Sales\Model\OrderFactory
+     * @var OrderStatusHistoryRepositoryInterface
      */
-	protected $_orderFactory;
+    protected $historyRepository;
 
     /**
-     * @var \Magento\Framework\Json\Helper\Data
+     * @var OrderRepositoryInterface
      */
-	protected $_jsonHelper;
+    protected $orderRepository;
 
     /**
-     * @var \Magento\Framework\Filter\FilterManager
+     * @var Data
      */
-	protected $_filterManager;
+    protected $jsonHelper;
+
+    /**
+     * @var FilterManager
+     */
+    protected $filterManager;
 
     /**
      * GuestPaymentInformationManagement constructor.
      *
-     * @param \Magento\Sales\Model\Order\Status\HistoryFactory $historyFactory
-     * @param \Magento\Sales\Model\OrderFactory $orderFactory
+     * @param Data $jsonHelper
+     * @param FilterManager $filterManager
+     * @param HistoryFactory $historyFactory
+     * @param OrderStatusHistoryRepositoryInterface $historyRepository
+     * @param OrderRepositoryInterface $orderRepository
      */
     public function __construct(
-        \Magento\Framework\Json\Helper\Data $jsonHelper,
-        \Magento\Framework\Filter\FilterManager $filterManager,
-		\Magento\Sales\Model\Order\Status\HistoryFactory $historyFactory,
-		\Magento\Sales\Model\OrderFactory $orderFactory
+        Data $jsonHelper,
+        FilterManager $filterManager,
+        HistoryFactory $historyFactory,
+        OrderStatusHistoryRepositoryInterface $historyRepository,
+        OrderRepositoryInterface $orderRepository
     ) {
-        $this->_jsonHelper = $jsonHelper;
-        $this->_filterManager = $filterManager;
-		$this->_historyFactory = $historyFactory;
-		$this->_orderFactory = $orderFactory;
+        $this->jsonHelper        = $jsonHelper;
+        $this->filterManager     = $filterManager;
+        $this->historyFactory    = $historyFactory;
+        $this->historyRepository = $historyRepository;
+        $this->orderRepository   = $orderRepository;
     }
 
     /**
@@ -55,56 +75,55 @@ class GuestPaymentInformationManagement
      * @param \Closure $proceed
      * @param $cartId
      * @param $email
-     * @param \Magento\Quote\Api\Data\PaymentInterface $paymentMethod
-     * @param \Magento\Quote\Api\Data\AddressInterface|null $billingAddress
+     * @param PaymentInterface $paymentMethod
+     * @param AddressInterface|null $billingAddress
      * @return int $orderId
+     * @throws \Exception
      */
     public function aroundSavePaymentInformationAndPlaceOrder(
-		\Magento\Checkout\Model\GuestPaymentInformationManagement $subject, 
-		\Closure $proceed,
+        \Magento\Checkout\Model\GuestPaymentInformationManagement $subject,
+        \Closure $proceed,
         $cartId,
-		$email,
-        \Magento\Quote\Api\Data\PaymentInterface $paymentMethod,
-        \Magento\Quote\Api\Data\AddressInterface $billingAddress
-    ) {	
-		/** @param string $comment */
-		$comment = NULL;
-		// get JSON post data
-		$requestBody = file_get_contents('php://input');
-		// decode JSON post data into array
-		$data = $this->_jsonHelper->jsonDecode($requestBody);
-		// get order comments from decoded json post data
-		if (isset ($data['comments'])) {
-			// make sure there is a comment to save
-			if ($data['comments']) {
-				// remove any HTML tags
-				$comment = $this->_filterManager->stripTags($data['comments']);
-				$comment = __('Order Comment: ') . $comment;
-			}
-		}
-		// run parent method and capture int $orderId
-		$orderId = $proceed($cartId, $email, $paymentMethod, $billingAddress);
-		// if $comments
-		if ($comment) {
-			/** @param \Magento\Sales\Model\OrderFactory $order */
-			$order = $this->_orderFactory->create()->load($orderId);
-			// make sure $order exists 
-			if ($order->getEntityId()) {
-				/** @param string $status */
-				$status = $order->getStatus();
+        $email,
+        PaymentInterface $paymentMethod,
+        AddressInterface $billingAddress
+    ) {
+        /** @param string $comment */
+        $comment = null;
+        // get JSON post data
+        $requestBody = file_get_contents('php://input');
+        // decode JSON post data into array
+        $data = $this->jsonHelper->jsonDecode($requestBody);
+        // get order comments from decoded json post data
+        // make sure there is a comment to save
+        $comment = $data['paymentMethod']['extension_attributes']['comments'];
+        if (isset($comment) && $comment) {
+            // remove any HTML tags
+            $comment = $this->filterManager->stripTags($comment);
+            $comment = __('Order Comment: ') . $comment;
+        }
+        // run parent method and capture int $orderId
+        $orderId = $proceed($cartId, $email, $paymentMethod, $billingAddress);
+        // if $comments
+        if ($comment) {
+            $order = $this->orderRepository->get($orderId);
+            // make sure $order exists
+            if ($order->getEntityId()) {
+                /** @param string $status */
+                $status = $order->getStatus();
 
-				/** @param \Magento\Sales\Model\Order\Status\HistoryFactory $history */
-				$history = $this->_historyFactory->create();
-				// set comment history data
-				$history->setComment($comment);
-				$history->setParentId($orderId);
-				$history->setIsVisibleOnFront(1);
-				$history->setIsCustomerNotified(0);
-				$history->setEntityName('order');
-				$history->setStatus($status);
-				$history->save();
-			}
-		}
-		return $orderId;
+                /** @var OrderStatusHistoryInterface $history */
+                $history = $this->historyFactory->create();
+                // set comment history data
+                $history->setComment($comment);
+                $history->setParentId($orderId);
+                $history->setIsVisibleOnFront(1);
+                $history->setIsCustomerNotified(0);
+                $history->setEntityName('order');
+                $history->setStatus($status);
+                $this->historyRepository->save($history);
+            }
+        }
+        return $orderId;
     }
 }

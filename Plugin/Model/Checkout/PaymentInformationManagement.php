@@ -1,12 +1,21 @@
 <?php
 /**
- * Copyright © 2017 RohitKundale. All rights reserved.
+ * Copyright ©  RohitKundale. All rights reserved.
  * See COPYING.txt for license details.
  */
 
 namespace RohitKundale\OrderComment\Plugin\Model\Checkout;
 
+use Magento\Checkout\Model\Session;
+use Magento\Framework\Filter\FilterManager;
+use Magento\Framework\Json\Helper\Data;
+use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
+use Magento\Quote\Model\QuoteManagement;
+use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Sales\Api\OrderStatusHistoryRepositoryInterface;
+use Magento\Sales\Model\Order\Status\HistoryFactory;
+use Magento\Sales\Model\OrderFactory;
 
 /**
  * Class PaymentInformationManagement
@@ -16,97 +25,120 @@ use Magento\Quote\Api\Data\PaymentInterface;
 class PaymentInformationManagement
 {
     /**
-     * @var \Magento\Sales\Model\Order\Status\HistoryFactory
+     * @var HistoryFactory
      */
     protected $historyFactory;
 
     /**
-     * @var \Magento\Sales\Model\OrderFactory
+     * @var OrderStatusHistoryRepositoryInterface
      */
-    protected $orderFactory;
+    protected $historyRepository;
 
     /**
-     * @var \Magento\Framework\Json\Helper\Data
+     * @var OrderRepositoryInterface
      */
-    protected $_jsonHelper;
+    protected $orderRepository;
 
     /**
-     * @var \Magento\Framework\Filter\FilterManager
+     * @var Data
      */
-    protected $_filterManager;
+    protected $jsonHelper;
+
+    /**
+     * @var FilterManager
+     */
+    protected $filterManager;
+
+    /**
+     * @var Session
+     */
+    protected $checkoutSession;
 
     /**
      * PaymentInformationManagement constructor.
      *
-     * @param \Magento\Sales\Model\Order\Status\HistoryFactory $historyFactory
-     * @param \Magento\Sales\Model\OrderFactory $orderFactory
+     * @param Data $jsonHelper
+     * @param FilterManager $filterManager
+     * @param HistoryFactory $historyFactory
+     * @param OrderStatusHistoryRepositoryInterface $historyRepository
+     * @param OrderRepositoryInterface $orderRepository
+     * @param Session $checkoutSession
      */
     public function __construct(
-        \Magento\Framework\Json\Helper\Data $jsonHelper,
-        \Magento\Framework\Filter\FilterManager $filterManager,
-        \Magento\Sales\Model\Order\Status\HistoryFactory $historyFactory,
-        \Magento\Sales\Model\OrderFactory $orderFactory
-    )
-    {
-        $this->_jsonHelper = $jsonHelper;
-        $this->_filterManager = $filterManager;
-        $this->historyFactory = $historyFactory;
-        $this->orderFactory = $orderFactory;
+        Data $jsonHelper,
+        FilterManager $filterManager,
+        HistoryFactory $historyFactory,
+        OrderStatusHistoryRepositoryInterface $historyRepository,
+        OrderRepositoryInterface $orderRepository,
+        Session $checkoutSession
+    ) {
+        $this->jsonHelper        = $jsonHelper;
+        $this->filterManager     = $filterManager;
+        $this->historyFactory    = $historyFactory;
+        $this->historyRepository = $historyRepository;
+        $this->orderRepository   = $orderRepository;
+        $this->checkoutSession   = $checkoutSession;
     }
 
+    /**
+     * @param \Magento\Checkout\Model\PaymentInformationManagement $subject
+     * @param \Closure $proceed
+     * @param $cartId
+     * @param PaymentInterface $paymentMethod
+     * @param AddressInterface|null $billingAddress
+     * @return mixed
+     */
     public function aroundSavePaymentInformation(
         \Magento\Checkout\Model\PaymentInformationManagement $subject,
         \Closure $proceed,
         $cartId,
         PaymentInterface $paymentMethod,
-        \Magento\Quote\Api\Data\AddressInterface $billingAddress = null
-    )
-    {
-        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-        $checkoutSession = $objectManager->create('\Magento\Checkout\Model\Session');
-
-        $comment = NULL;
+        AddressInterface $billingAddress = null
+    ) {
+        $comment = null;
         // get JSON post data
         $requestBody = file_get_contents('php://input');
         // decode JSON post data into array
-        $data = $this->_jsonHelper->jsonDecode($requestBody);
+        $data = $this->jsonHelper->jsonDecode($requestBody);
         // get order comments from decoded json post data
-        if (isset ($data['comments'])) {
-            // make sure there is a comment to save
-            if ($data['comments']) {
-                // remove any HTML tags
-                $comment = $this->_filterManager->stripTags($data['comments']);
-                $comment = __('Order Comment: ') . $comment;
-                $checkoutSession->setOrderCommentstext($comment);
-            }
+        // make sure there is a comment to save
+        $comment = $data['paymentMethod']['extension_attributes']['comments'];
+        if (isset($comment) && $comment) {
+            // remove any HTML tags
+            $comment = $this->filterManager->stripTags($comment);
+            $comment = __('Order Comment: ') . $comment;
+            $this->checkoutSession->setOrderCommentstext($comment);
         }
         // run parent method and capture int $orderId
-        $result = $proceed($cartId, $paymentMethod, $billingAddress);
-
-        return $result;
+        return $proceed($cartId, $paymentMethod, $billingAddress);
     }
 
+    /**
+     * @param QuoteManagement $subject
+     * @param \Closure $proceed
+     * @param $cartId
+     * @param PaymentInterface|null $paymentMethod
+     * @return mixed
+     * @throws \Exception
+     */
     public function aroundPlaceOrder(
-        \Magento\Quote\Model\QuoteManagement $subject,
+        QuoteManagement $subject,
         \Closure $proceed,
         $cartId,
         PaymentInterface $paymentMethod = null
-    )
-    {
-        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-        $checkoutSession = $objectManager->create('\Magento\Checkout\Model\Session');
-        $comment = $checkoutSession->getOrderCommentstext();
+    ) {
+        $comment = $this->checkoutSession->getOrderCommentstext();
 
         $orderId = $proceed($cartId, $paymentMethod);
         if ($comment) {
-            /** @param \Magento\Sales\Model\OrderFactory $order */
-            $order = $this->orderFactory->create()->load($orderId);
+            /** @param OrderFactory $order */
+            $order = $this->orderRepository->get($orderId);
             // make sure $order is exists
             if ($order->getEntityId()) {
                 /** @param string $status */
                 $status = $order->getStatus();
 
-                /** @param \Magento\Sales\Model\Order\Status\HistoryFactory $history */
+                /** @param HistoryFactory $history */
                 $history = $this->historyFactory->create();
                 // set comment history data
                 $history->setComment($comment);
@@ -115,10 +147,10 @@ class PaymentInformationManagement
                 $history->setIsCustomerNotified(0);
                 $history->setEntityName('order');
                 $history->setStatus($status);
-                $history->save();
+                $this->historyRepository->save($history);
                 $order->setCustomerNote($comment);
-                $order->save();
-                $checkoutSession->setOrderCommentstext("");
+                $this->orderRepository->save($order);
+                $this->checkoutSession->setOrderCommentstext("");
             }
         }
 
