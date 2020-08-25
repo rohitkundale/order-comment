@@ -6,7 +6,7 @@
 define([
     'jquery',
     'mage/utils/wrapper',
-    'RohitKundale_OrderComment/js/model/agreements-assigner'
+    'RohitKundale_OrderComment/js/model/comment-assigner'
 ], function ($, wrapper, commentAssigner) {
     'use strict';
 
