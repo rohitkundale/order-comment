@@ -2,7 +2,7 @@
   "name": "rohitkundale/order-comment",
   "description": "Allows customer to add a special note/message/comment or instruction while placing an order",
   "type": "magento2-module",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "license": [
     "OSL-3.0"
   ],
