@@ -106,7 +106,7 @@ class PaymentInformationManagement
         if (isset($comment) && $comment) {
             // remove any HTML tags
             $comment = $this->filterManager->stripTags($comment);
-            $comment = __('Order Comment: ') . $comment;
+            $comment = __('ORDER COMMENT: ') . $comment;
             $this->checkoutSession->setOrderCommentstext($comment);
         }
         // run parent method and capture int $orderId
