@@ -102,8 +102,8 @@ class PaymentInformationManagement
         $data = $this->jsonHelper->jsonDecode($requestBody);
         // get order comments from decoded json post data
         // make sure there is a comment to save
-        $comment = $data['paymentMethod']['extension_attributes']['comments'];
-        if (isset($comment) && $comment) {
+        $comment = isset($data['paymentMethod']['extension_attributes']['comments']) ? $data['paymentMethod']['extension_attributes']['comments'] : false;
+        if ($comment) {
             // remove any HTML tags
             $comment = $this->filterManager->stripTags($comment);
             $comment = __('ORDER COMMENT: ') . $comment;
